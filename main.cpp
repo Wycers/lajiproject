@@ -2,19 +2,19 @@
 
 
 #include "src/semantic_analysis/semantic_analysis.hpp"
+#include "src/ir/ir_generator.hpp"
 #include "syntax.tab.c"
 
-int main(int argc, char **argv){
+int main(int argc, char **argv) {
 
     char *filename = argv[1];
 
 
-    FILE* fin = NULL;
-    extern FILE* yyin;
+    FILE *fin = NULL;
+    extern FILE *yyin;
     fin = fopen(filename, "r");
 
-    if(fin == NULL)
-    {
+    if (fin == NULL) {
         printf("cannot open reading file.\n");
         return -1;
     }
@@ -30,11 +30,16 @@ int main(int argc, char **argv){
 //
 //    freopen(filename, "w", stdout);
 
-    semantic_analysis(root_node);
+    auto program = semantic_analysis(root_node);
 
     if (has_error()) {
         print_errors();
         return -1;
+    }
+
+    auto irs = program->generate();
+    for (auto ir: irs) {
+        cout << ir->str() << endl;
     }
 
     /* display(root_node, 0); */

@@ -165,3 +165,6 @@ struct WRITE_IR : public IR {
         return "WRITE " + args[0];
     }
 };
+
+
+typedef std::vector<IR *> IRList;
