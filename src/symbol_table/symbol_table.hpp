@@ -1,3 +1,5 @@
+#pragma once
+
 #include <symbol_table_entry.h>
 #include <error.h>
 
