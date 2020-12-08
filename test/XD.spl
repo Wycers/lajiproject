@@ -1,0 +1,23 @@
+
+struct A {
+  int i;
+  float f;
+};
+
+struct B {
+  int j;
+  float f;
+};
+
+
+
+int test_2_o01()
+{
+
+
+  int i = 1;
+  if (i == 1)
+  {
+    int i = 2;
+  }
+}

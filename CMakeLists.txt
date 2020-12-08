@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(untitled5)
+
+set(CMAKE_CXX_STANDARD 14)
+
+include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/src/node)
+include_directories(${CMAKE_SOURCE_DIR}/src/error)
+include_directories(${CMAKE_SOURCE_DIR}/src/ir)
+include_directories(${CMAKE_SOURCE_DIR}/src/symbol_table)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+
+add_executable(splc
+        main.cpp
+        ./src/error/error.cpp
+        ./src/node/node.cpp
+        ./src/ir/ir.hpp
+        ./src/semantic_analysis/semantic_analysis.hpp
+        src/ir_generator.hpp)
