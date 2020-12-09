@@ -15,23 +15,32 @@ struct Expression {
     struct Field *field;
     bool isLeftValue;
 };
+struct Args;
 
 struct Exp {
     Expression *expression;
+    Node *node;
+
+    Args *args;
+    Exp *exp1, *exp2;
+    string id;
 
     Exp(Node *node);
 
-    IRList generate();
+    IRList generate(std::string place, pair<string, string> lbs = {"", ""});
 };
 
 struct Args {
 
     std::vector<Field *> fields;
+    std::vector<std::string> tmp;
 
     Args *nextArgs = nullptr;
+    Exp *exp;
 
     explicit Args(Node *node) {
-        Field *e = (new Exp(node->children[0]))->expression->field;
+        exp = new Exp(node->children[0]);
+        Field *e = exp->expression->field;
         fields = std::vector<Field *>{e};
         if (node->type == NodeType::ArgsMultiple) {
             nextArgs = new Args(node->children[2]);
@@ -43,7 +52,7 @@ struct Args {
     IRList generate();
 };
 
-Exp::Exp(Node *node) {
+Exp::Exp(Node *node) : node(node) {
 
 #ifdef debug
     printf("exp\n");
@@ -54,14 +63,17 @@ printf("lineno: %d\n", node->lineno);
     auto error_expr = new Expression{
             new Field(new Type(Primitive::NotExpr), node->lineno),
             true};
+
     expression = error_expr;
 
     if (node->type == NodeType::ExpAssign) {
-        auto exp1 = (new Exp(c[0]))->expression, exp2 = (new Exp(c[2]))->expression;
-        if (!exp1->isLeftValue)
+        exp1 = new Exp(c[0]);
+        exp2 = new Exp(c[2]);
+        auto expr1 = exp1->expression, expr2 = exp2->expression;
+        if (!expr1->isLeftValue)
             semantic_error(ErrorType::SemanticType6, node->lineno, "");
 
-        auto oprand1 = exp1->field, oprand2 = exp2->field;
+        auto oprand1 = expr1->field, oprand2 = expr2->field;
 
         if (!oprand1->type->equals(oprand2->type)) {
             std::string msg =
@@ -71,8 +83,10 @@ printf("lineno: %d\n", node->lineno);
         expression = new Expression{new Field{new Type(*oprand1->type), node->lineno}, false};
     }
     if (node->type == NodeType::ExpAnd || node->type == NodeType::ExpOr) {
-        auto exp1 = (new Exp(c[0]))->expression, exp2 = (new Exp(c[2]))->expression;
-        auto oprand1 = exp1->field, oprand2 = exp2->field;
+        exp1 = new Exp(c[0]);
+        exp2 = new Exp(c[2]);
+        auto expr1 = exp1->expression, expr2 = exp2->expression;
+        auto oprand1 = expr1->field, oprand2 = expr2->field;
         auto category_1 = oprand1->type->category;
         auto category_2 = oprand2->type->category;
         if (category_1 != Category::PRIMITIVE ||
@@ -81,6 +95,7 @@ printf("lineno: %d\n", node->lineno);
                            "Only INT type can not be used in boolean operator",
                            "");
             expression = error_expr;
+            return;
         }
         auto primitive_1 = oprand1->type->primitive;
         auto primitive_2 = oprand2->type->primitive;
@@ -90,6 +105,7 @@ printf("lineno: %d\n", node->lineno);
                            "Only INT type can not be used in boolean operator",
                            "");
             expression = error_expr;
+            return;
         }
         expression = new Expression{
                 new Field{new Type(*oprand1->type), node->lineno},
@@ -101,14 +117,18 @@ printf("lineno: %d\n", node->lineno);
         node->type == NodeType::ExpGE ||
         node->type == NodeType::ExpEQ ||
         node->type == NodeType::ExpNE) {
-        auto exp1 = (new Exp(c[0]))->expression, exp2 = (new Exp(c[2]))->expression;
-        auto oprand1 = exp1->field, oprand2 = exp2->field;
+
+        exp1 = new Exp(c[0]);
+        exp2 = new Exp(c[2]);
+        auto expr1 = exp1->expression, expr2 = exp2->expression;
+        auto oprand1 = expr1->field, oprand2 = expr2->field;
         auto category_1 = oprand1->type->category;
         auto category_2 = oprand2->type->category;
         if (category_1 != Category::PRIMITIVE ||
             category_2 != Category::PRIMITIVE) {
             semantic_error(ErrorType::SemanticType7, node->lineno, "");
             expression = error_expr;
+            return;
         }
         auto primitive_1 = oprand1->type->primitive;
         auto primitive_2 = oprand2->type->primitive;
@@ -124,6 +144,7 @@ printf("lineno: %d\n", node->lineno);
                                "CHAR type can not be used in arithmetic operator",
                                "");
                 expression = error_expr;
+                return;
             }
         }
         expression = new Expression{
@@ -134,14 +155,17 @@ printf("lineno: %d\n", node->lineno);
         node->type == NodeType::ExpMinus ||
         node->type == NodeType::ExpMul ||
         node->type == NodeType::ExpDiv) {
-        auto exp1 = (new Exp(c[0]))->expression, exp2 = (new Exp(c[2]))->expression;
-        auto oprand1 = exp1->field, oprand2 = exp2->field;
+        exp1 = new Exp(c[0]);
+        exp2 = new Exp(c[2]);
+        auto expr1 = exp1->expression, expr2 = exp2->expression;
+        auto oprand1 = expr1->field, oprand2 = expr2->field;
         auto category_1 = oprand1->type->category;
         auto category_2 = oprand2->type->category;
         if (category_1 != Category::PRIMITIVE ||
             category_2 != Category::PRIMITIVE) {
             semantic_error(ErrorType::SemanticType7, node->lineno, "");
             expression = error_expr;
+            return;
         }
         auto primitive_1 = oprand1->type->primitive;
         auto primitive_2 = oprand2->type->primitive;
@@ -152,18 +176,21 @@ printf("lineno: %d\n", node->lineno);
                            "CHAR type can not be used in arithmetic operator",
                            "");
             expression = error_expr;
+            return;
         }
         expression = new Expression{
                 new Field{new Type(*oprand1->type), node->lineno},
                 false};
     }
     if (node->type == NodeType::ExpNegative || node->type == NodeType::ExpNot) {
-        auto oprand = (new Exp(c[1]))->expression->field;
+        exp1 = new Exp(c[1]);
+        auto oprand = exp1->expression->field;
         if (oprand->type->category != Category::PRIMITIVE) {
             semantic_error(node->lineno,
                            "Derived type can not be used in negative operator",
                            "");
             expression = error_expr;
+            return;
         }
         if (node->type == NodeType::ExpNegative &&
             oprand->type->primitive == Primitive::CHAR) {
@@ -171,6 +198,7 @@ printf("lineno: %d\n", node->lineno);
                            "CHAR type can not be used in negative operator",
                            "");
             expression = error_expr;
+            return;
         }
         if (node->type == NodeType::ExpNot &&
             oprand->type->primitive != Primitive::INT) {
@@ -178,20 +206,43 @@ printf("lineno: %d\n", node->lineno);
                            "Only INT type can be used in not operator",
                            "");
             expression = error_expr;
+            return;
         }
         expression = new Expression{
                 new Field{new Type(*oprand->type), node->lineno},
                 false};
     }
     if (node->type == NodeType::ExpBracketWrapped) {
-        auto e = (new Exp(c[1]))->expression->field;
+        exp1 = new Exp(c[1]);
+        auto e = exp1->expression->field;
         expression = new Expression{
                 new Field{e->name, new Type(*(e->type)), e->lineno},
                 false};
     }
     if (node->type == NodeType::ExpArgsFuncCall ||
         node->type == NodeType::ExpFuncCall) {
-        std::string func_name = id(c[0]);
+        std::string func_name = idOf(c[0]);
+
+        /* Special Care for R/W function */
+        if (func_name == "read") {
+            /* Args -> Arg -> Exp */
+            expression = new Expression{
+                    new Field{new Type(Primitive::INT), node->lineno},
+                    false};
+            return;
+        }
+        if (func_name == "write") {
+            if (node->type == NodeType::ExpFuncCall) {
+                semantic_error(node->lineno, "missing arguments");
+                return;
+            }
+            args = new Args(c[2]);
+            expression = new Expression{
+                    new Field{new Type(Primitive::INT), node->lineno},
+                    false};
+            return;
+        }
+
         auto func_entry = SYMBOL_TABLE.find(func_name, EntryType::FUNC);
         if (func_entry == nullptr) {
             if (SYMBOL_TABLE.find(func_name))
@@ -199,6 +250,7 @@ printf("lineno: %d\n", node->lineno);
             else
                 semantic_error(ErrorType::SemanticType2, node->lineno, func_name.c_str());
             expression = error_expr;
+            return;
         }
         Func *func = func_entry->func;
         std::vector<Field *> arguments{};
@@ -213,6 +265,7 @@ printf("lineno: %d\n", node->lineno);
             expression = new Expression{
                     new Field{"Exp", new Type(*func->ret), node->lineno},
                     false};
+            return;
         }
         for (int i = 0; i < arguments.size(); i++) {
             if (func->params[i]->type->equals(arguments[i]->type))
@@ -223,35 +276,43 @@ printf("lineno: %d\n", node->lineno);
             expression = new Expression{
                     new Field{"Exp", new Type(*func->ret), node->lineno},
                     false};
+            return;
         }
         expression = new Expression{
                 new Field{new Type(*func->ret), node->lineno},
                 false};
     }
     if (node->type == NodeType::ExpArrayIndex) {
-        Field *field = (new Exp(c[0]))->expression->field;
+        exp1 = new Exp(c[0]);
+        Field *field = exp1->expression->field;
         if (field->type->category != Category::ARRAY) {
             semantic_error(ErrorType::SemanticType10, node->lineno, field->name.c_str());
             expression = error_expr;
+            return;
         }
         Array *arr = field->type->array;
 
-        Field *idx = (new Exp(c[2]))->expression->field;
+        exp2 = new Exp(c[2]);
+        Field *idx = exp2->expression->field;
         if (idx->type->category != Category::PRIMITIVE ||
             idx->type->primitive != Primitive::INT) {
             semantic_error(ErrorType::SemanticType12, node->lineno, field->name.c_str());
             expression = error_expr;
+            return;
         }
+        id = exp1->id;
         expression = new Expression{
                 new Field{new Type(*arr->type), node->lineno},
                 true};
     }
-    if (node->type == NodeType::ExpFiledAccess) {
-        Field *s = (new Exp(c[0]))->expression->field;
-        std::string field_name = id(c[2]);
+    if (node->type == NodeType::ExpFieldAccess) {
+        exp1 = new Exp(c[0]);
+        Field *s = exp1->expression->field;
+        std::string field_name = idOf(c[2]);
         if (s->type->category != Category::STRUCT) {
             semantic_error(ErrorType::SemanticType13, node->lineno, s->name.c_str());
             expression = error_expr;
+            return;
         }
         auto fields = s->type->structure->fields;
         for (auto i : fields) {
@@ -265,11 +326,12 @@ printf("lineno: %d\n", node->lineno);
         expression = error_expr;
     }
     if (node->type == NodeType::ExpId) {
-        std::string var_name = id(c[0]);
-        auto var_entry = SYMBOL_TABLE.find(var_name, EntryType::FIELD);
+        id = idOf(c[0]);
+        auto var_entry = SYMBOL_TABLE.find(id, EntryType::FIELD);
         if (var_entry == nullptr) {
-            semantic_error(ErrorType::SemanticType1, node->lineno, var_name.c_str());
+            semantic_error(ErrorType::SemanticType1, node->lineno, id.c_str());
             expression = error_expr;
+            return;
         }
         expression = new Expression{
                 new Field{new Type(*var_entry->field->type), var_entry->field->lineno},
@@ -304,7 +366,11 @@ struct DefList {
 
     std::vector<Field *> fields;
 
-    explicit DefList(Node *node, bool insert_now = false);
+    Node *node;
+    bool insert_now;
+
+
+    DefList(Node *node, bool insert_now = false);
 
     IRList generate();
 };
@@ -327,10 +393,13 @@ struct CompSt {
 
 struct Stmt {
     Exp *exp = nullptr;
-    Stmt *stmt = nullptr;
+    Stmt *stmt1 = nullptr, *stmt2 = nullptr;
     CompSt *compSt = nullptr;
 
-    Stmt(Node *node, Type *ret_type) {
+    Node *node;
+    Type *ret_type;
+
+    Stmt(Node *node, Type *ret_type) : node(node), ret_type(ret_type) {
         auto c = node->children;
         if (node->type == NodeType::StmtExp) {
             exp = new Exp(c[0]);
@@ -339,22 +408,23 @@ struct Stmt {
             compSt = new CompSt(c[0], ret_type);
         }
         if (node->type == NodeType::StmtReturn) {
-            Field *ret = (new Exp(c[1]))->expression->field;
+            exp = new Exp(c[1]);
+            Field *ret = exp->expression->field;
             if (!ret->type->equals(ret_type))
                 semantic_error(ErrorType::SemanticType8, node->lineno, "");
         }
         if (node->type == NodeType::StmtIf) {
             exp = new Exp(c[2]);
-            stmt = new Stmt(c[4], ret_type);
+            stmt1 = new Stmt(c[4], ret_type);
         }
         if (node->type == NodeType::StmtIfElse) {
             exp = new Exp(c[2]);
-            new Stmt(c[4], ret_type);
-            new Stmt(c[6], ret_type);
+            stmt1 = new Stmt(c[4], ret_type);
+            stmt2 = new Stmt(c[6], ret_type);
         }
         if (node->type == NodeType::StmtWhile) {
-            new Exp(c[2]);
-            new Stmt(c[4], ret_type);
+            exp = new Exp(c[2]);
+            stmt1 = new Stmt(c[4], ret_type);
         }
     }
 
@@ -368,7 +438,7 @@ struct StructSpecifier {
 
     explicit StructSpecifier(Node *node) {
         Struct *structure = new Struct;
-        structure->name = id(node->children[1]);
+        structure->name = idOf(node->children[1]);
         structure->fields = std::vector<Field *>();
 
         if (node->type == NodeType::StructSpecifierWithBody) {
@@ -420,7 +490,10 @@ struct VarDec {
     Field *field = nullptr;
     VarDec *nextVarDec = nullptr;
 
-    VarDec(Node *node, Type *type) {
+    Node *node;
+    Type *type;
+
+    VarDec(Node *node, Type *type) : node(node), type(type) {
 #ifdef debug
         printf("var_dec\n");
     if (node)
@@ -432,6 +505,7 @@ struct VarDec {
         if (node->type == NodeType::VarDecArray) {
             nextVarDec = new VarDec(node->children[0], new Type(new Array{type, _int(node->children[2])}));
             field = nextVarDec->field;
+            this->type = field->type;
         }
     }
 
@@ -444,6 +518,11 @@ struct Dec {
 
     VarDec *varDec = nullptr;
 
+    Exp *exp = nullptr;
+
+    Node *node = nullptr;
+    Type *type = nullptr;
+
     Dec(Node *node, Type *type);
 
     IRList generate();
@@ -454,8 +533,10 @@ struct DecList {
     Dec *dec = nullptr;
     DecList *nextDecList = nullptr;
     std::vector<Field *> fields;
+    Node *node;
+    Type *type;
 
-    DecList(Node *node, Type *type) {
+    DecList(Node *node, Type *type) : node(node), type(type) {
 #ifdef debug
         printf("dec_list\n");
     if (node)
@@ -474,12 +555,13 @@ struct DecList {
     IRList generate();
 };
 
-
 struct Def {
     Specifier *specifier = nullptr;
     DecList *decList = nullptr;
 
     std::vector<Field *> fields;
+
+    Type *type = nullptr, *derived = nullptr;
 
     Def(Node *node) {
 #ifdef debug
@@ -489,12 +571,12 @@ struct Def {
     printf("%s\n", node->text);
 #endif
         specifier = new Specifier(node->children[0]);
-        Type *type = specifier->type;
+        type = specifier->type;
         if (type == nullptr) {
             printf("fatal error");
             exit(-1);
         }
-        Type *derived = _type_exist(type, node->lineno);
+        derived = _type_exist(type, node->lineno);
         if (derived == nullptr)
             decList = new DecList(node->children[1], type);
         else
@@ -505,7 +587,7 @@ struct Def {
     IRList generate();
 };
 
-DefList::DefList(Node *node, bool insert_now) {
+DefList::DefList(Node *node, bool insert_now) : node(node), insert_now(insert_now) {
 #ifdef debug
     printf("def_list\n");
 if (node)
@@ -514,18 +596,21 @@ printf("lineno: %d\n", node->lineno);
     fields = std::vector<Field *>();
     if (node && node->type == NodeType::DefList) {
         def = new Def(node->children[0]);
-        fields = def->fields;
+        fields = std::vector<Field *>(def->fields);
         if (insert_now) {
-            for (int i = 0; i < fields.size(); i++) {
-                SYMBOL_TABLE.insert(new SymbolTableEntry(fields[i], fields[i]->lineno));
+            for (auto field: fields) {
+                SYMBOL_TABLE.insert(new SymbolTableEntry(field, field->lineno));
             }
         }
         nextDefList = new DefList(node->children[1], insert_now);
         auto nextFields = nextDefList->fields;
-        fields.insert(fields.end(), nextFields.begin(), nextFields.end());
+        // TODO: find out why
+//        fields.insert(fields.end(), nextFields.begin(), nextFields.end());
+        for (auto field: fields) {
+            cout << field->name << endl;
+        }
+        cout << endl;
     }
-
-    IRList generate();
 }
 
 
@@ -536,8 +621,8 @@ struct StmtList {
     Node *node;
     Type *ret_type;
 
-    StmtList(Node *node, Type *ret_type) :  node(node), ret_type(ret_type) {
-        if (node && node->type != NodeType::StmtList) {
+    StmtList(Node *node, Type *ret_type) : node(node), ret_type(ret_type) {
+        if (node && node->type == NodeType::StmtList) {
             stmt = new Stmt(node->children[0], ret_type);
             nextStmtList = new StmtList(node->children[1], ret_type);
         }
@@ -563,7 +648,7 @@ struct ParamDec {
 };
 
 
-Dec::Dec(Node *node, Type *type) {
+Dec::Dec(Node *node, Type *type) : node(node), type(type) {
 #ifdef debug
     printf("dec\n");
 if (node)
@@ -572,12 +657,11 @@ if (node)
     varDec = new VarDec(node->children[0], type);
     field = varDec->field;
     if (node->type == NodeType::DecWithAssign) {
-        Field *e = (new Exp(node->children[2]))->expression->field;
+        exp = new Exp(node->children[2]);
+        Field *e = exp->expression->field;
         if (!e->type->equals(type))
             semantic_error(ErrorType::SemanticType5, node->lineno, "");
     }
-
-    IRList generate();
 }
 
 struct VarList {
@@ -647,7 +731,7 @@ struct FunDec {
     std::string name;
 
     FunDec(Node *node, Type *ret_type) {
-        name = id(node->children[0]);
+        name = idOf(node->children[0]);
         auto param_list = std::vector<Field *>();
         if (node->type == NodeType::FunDecArgs) {
             varList = new VarList(node->children[2]);

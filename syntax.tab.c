@@ -2341,7 +2341,7 @@ yyreduce:
 										insert_node(root_node, (yyvsp[-2].node));
    		                        	    insert_node(root_node, (yyvsp[-1].node));
    		                        	    insert_node(root_node, (yyvsp[0].node));
-										set_node_type(root_node, NodeType::ExpFiledAccess);
+										set_node_type(root_node, NodeType::ExpFieldAccess);
    		                        	    (yyval.node) = root_node;
    		                        	}
 #line 2348 "syntax.tab.c"

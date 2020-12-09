@@ -114,7 +114,7 @@ struct RET_IR : public IR {
     RET_IR(std::vector<std::string> args) : IR(args) {}
 
     virtual std::string str() {
-        return "RET " + args[0];
+        return "RETURN " + args[0];
     }
 };
 

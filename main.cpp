@@ -37,12 +37,13 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    display(root_node, 0);
+
     auto irs = program->generate();
     for (auto ir: irs) {
         cout << ir->str() << endl;
     }
 
-    /* display(root_node, 0); */
 
     /* SYMBOL_TABLE.print(); */
 

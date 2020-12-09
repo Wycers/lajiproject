@@ -9,7 +9,7 @@
 #include "symbol_table.hpp"
 #include "symbol_table_entry.h"
 
-char *id(Node *node) {
+char *idOf(Node *node) {
     return node->text;
 }
 
