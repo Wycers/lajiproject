@@ -24,6 +24,7 @@ struct Exp {
     Args *args;
     Exp *exp1, *exp2;
     string id;
+    string tag_name;
 
     Exp(Node *node);
 
@@ -33,7 +34,7 @@ struct Exp {
 struct Args {
 
     std::vector<Field *> fields;
-    std::vector<std::string> tmp;
+    std::vector<std::string> tags;
 
     Args *nextArgs = nullptr;
     Exp *exp;
@@ -255,7 +256,7 @@ printf("lineno: %d\n", node->lineno);
         Func *func = func_entry->func;
         std::vector<Field *> arguments{};
         if (node->type == NodeType::ExpArgsFuncCall) {
-            auto args = new Args(c[2]);
+            args = new Args(c[2]);
             arguments = args->fields;
         }
         if (func->params.size() != arguments.size()) {
@@ -321,6 +322,7 @@ printf("lineno: %d\n", node->lineno);
             expression = new Expression{
                     new Field{new Type(*(i->type)), i->lineno},
                     true};
+            return;
         }
         semantic_error(ErrorType::SemanticType14, node->lineno, field_name.c_str());
         expression = error_expr;
@@ -604,8 +606,7 @@ printf("lineno: %d\n", node->lineno);
         }
         nextDefList = new DefList(node->children[1], insert_now);
         auto nextFields = nextDefList->fields;
-        // TODO: find out why
-//        fields.insert(fields.end(), nextFields.begin(), nextFields.end());
+        fields.insert(fields.end(), nextFields.begin(), nextFields.end());
         for (auto field: fields) {
             cout << field->name << endl;
         }
@@ -640,6 +641,7 @@ struct ParamDec {
     ParamDec(Node *node) {
         specifier = new Specifier(node->children[0]);
         Type *type = specifier->type;
+        _type_exist(type, node->lineno);
         varDec = new VarDec(node->children[1], type);
         field = varDec->field;
     }
@@ -683,16 +685,15 @@ struct VarList {
     IRList generate();
 };
 
-CompSt::CompSt(Node *node, Type *ret_type, std::vector<Field *> params) {
+CompSt::CompSt(Node *node, Type *ret_type, std::vector<Field *> params) : node(node), ret_type(ret_type),
+                                                                          params(params) {
 #ifdef debug
     printf("CompSt\n");
 #endif
-    ret_type = ret_type;
-    params = params;
-    node = node;
     SYMBOL_TABLE.scope_push(ret_type);
     for (auto param : params)
         SYMBOL_TABLE.insert(new SymbolTableEntry(param, node->lineno));
+    SYMBOL_TABLE.print();
     defList = new DefList(node->children[1], true);
     stmtList = new StmtList(node->children[2], ret_type);
 
@@ -736,8 +737,9 @@ struct FunDec {
         if (node->type == NodeType::FunDecArgs) {
             varList = new VarList(node->children[2]);
             param_list = varList->fields;
-            for (auto param : param_list)
+            for (auto param : param_list) {
                 _type_exist(param->type, param->lineno);
+            }
         }
         func = new Func{name, param_list, ret_type};
     }
