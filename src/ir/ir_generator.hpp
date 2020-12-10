@@ -303,16 +303,17 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
         string src = MGR.get_t("src");
         irs += exp2->generate(src);
 
-        string dst = MGR.get_t("dst");
-        irs += exp1->generate(dst);
 
         if (exp1->node->type == NodeType::ExpId) {
             // dst is variable
+            exp1->generate(place);
             irs += new ASSIGN_IR({exp1->tag_name, src});
-            irs += new ASSIGN_IR({place, src});
+            irs += new ASSIGN_IR({place, exp1->tag_name});
         } else {
             // dst is address
 
+            string dst = MGR.get_t("dst");
+            irs += exp1->generate(dst);
             string tmp_name = MGR.get_t("");
             irs += new LDEREF_IR({"addr_" + dst, src});
             irs += new RDEREF_IR({tmp_name, "addr_" + dst});
