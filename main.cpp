@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
 //    filename[len - 1] = 't';
 //
 //    freopen(filename, "w", stdout);
+    display(root_node, 0);
 
     auto program = semantic_analysis(root_node);
 
@@ -37,7 +38,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    display(root_node, 0);
 
     auto irs = program->generate();
     for (auto ir: irs) {

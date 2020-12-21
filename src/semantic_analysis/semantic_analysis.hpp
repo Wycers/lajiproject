@@ -69,8 +69,9 @@ printf("lineno: %d\n", node->lineno);
 
     if (node->type == NodeType::ExpAssign) {
         exp1 = new Exp(c[0]);
+        auto expr1 = exp1->expression;
         exp2 = new Exp(c[2]);
-        auto expr1 = exp1->expression, expr2 = exp2->expression;
+        auto expr2 = exp2->expression;
         if (!expr1->isLeftValue)
             semantic_error(ErrorType::SemanticType6, node->lineno, "");
 
@@ -303,7 +304,7 @@ printf("lineno: %d\n", node->lineno);
         }
         id = exp1->id;
         expression = new Expression{
-                new Field{new Type(*arr->type), node->lineno},
+                new Field{new Type(*(arr->type)), node->lineno},
                 true};
     }
     if (node->type == NodeType::ExpFieldAccess) {
