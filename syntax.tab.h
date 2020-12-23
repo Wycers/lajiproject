@@ -84,7 +84,7 @@ enum yytokentype
     GE = 290,
     NE = 291,
     EQ = 292,
-    SUB = 293
+    NEG = 293
 };
 #endif
 

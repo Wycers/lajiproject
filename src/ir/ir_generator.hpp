@@ -21,14 +21,27 @@ struct Manager {
 
     int cnt = 0;
     unordered_map<SymbolTableEntry *, std::string> mp;
+    unordered_map<SymbolTableEntry *, bool> refMp;
 
     void clear() {
         mp.clear();
+        refMp.clear();
         cnt = 0;
     }
 
     Manager() {
         clear();
+    }
+
+    std::string setRef(SymbolTableEntry *entry) {
+        refMp[entry] = true;
+    }
+
+    bool isRef(SymbolTableEntry *entry) {
+        if (refMp.find(entry) != refMp.end()) {
+            return true;
+        }
+        return false;
     }
 
     std::string get_v(SymbolTableEntry *entry) {
@@ -120,10 +133,13 @@ IRList FunDec::generate() {
 IRList CompSt::generate() {
     auto irs = IRList();
     SYMBOL_TABLE.scope_push(ret_type);
-
+    SYMBOL_TABLE.print();
     for (auto param : params) {
         auto entry = new SymbolTableEntry(param, node->lineno);
         irs.push_back(new PARAM_IR({MGR.get_v(entry)}));
+        if (entry->field->type->category != Category::PRIMITIVE) {
+            MGR.setRef(entry);
+        }
         SYMBOL_TABLE.insert(entry);
     }
     if (defList) {
@@ -311,7 +327,6 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
             irs += new ASSIGN_IR({place, exp1->tag_name});
         } else {
             // dst is address
-
             string dst = MGR.get_t("dst");
             irs += exp1->generate(dst);
             string tmp_name = MGR.get_t("");
@@ -403,54 +418,39 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
             }
         } else {
             irs += args->generate();
-            for (auto tag = args->tags.crbegin(); tag != args->tags.crend(); ++tag) {
-                irs += new ARG_IR({*tag});
+
+            int len = args->tags.size();
+
+            for (int i = len - 1; i >= 0; --i) {
+                auto field = args->fields[i];
+                auto tag = args->tags[i];
+
+                if (field->type->category == Category::PRIMITIVE) {
+                    irs.push_back(new ARG_IR({tag}));
+                } else {
+                    irs.push_back(new ARG_IR({"addr_" + tag}));
+                }
             }
             irs += new CALL_IR({place, func_name});
         }
-//        auto func_entry = SYMBOL_TABLE.find(func_name, EntryType::FUNC);
-//        if (func_entry == nullptr) {
-//            if (SYMBOL_TABLE.find(func_name))
-//                semantic_error(ErrorType::SemanticType11, node->lineno, func_name.c_str());
-//            else
-//                semantic_error(ErrorType::SemanticType2, node->lineno, func_name.c_str());
-//            expression = error_expr;
-//        }
-//        Func *func = func_entry->func;
-//        std::vector<Field *> arguments{};
-//        if (node->type == NodeType::ExpArgsFuncCall) {
-//            auto args = new Args(c[2]);
-//            arguments = args->fields;
-//        }
     }
-    if (node->type == NodeType::ExpArrayIndex) {
 
-        // 存放数组地址
+    if (node->type == NodeType::ExpArrayIndex) {
+// 存放数组地址
         string arrName = MGR.get_t("arr");
         irs += exp1->generate(arrName);
 
-        if (exp1->node->type == NodeType::ExpId) {
-            cout << exp1->id << endl;
-            auto tmp = irs.back();
-            irs.pop_back();
-            irs += new REF_IR(tmp->args);
-        }
-
-        // 存放数组下标
+// 存放数组下标
         string idxName = MGR.get_t("idx");
         irs += exp2->generate(idxName);
 
+        int space = spaceOf(exp1->expression->field->type->array->type);
 
-//        Field *field = exp1->expression->field;
-//        Array *arr = field->type->array;
-//        Field *idx = exp2->expression->field;
-
-        // 计算地址
+// 计算地址
         string spaceName = MGR.get_t("size");
-        irs += new MUL_IR({spaceName, idxName, "#4"});
-        irs += new ADD_IR({"addr_" + place, arrName, spaceName});
+        irs += new MUL_IR({spaceName, idxName, "#" + std::to_string(space)});
+        irs += new ADD_IR({"addr_" + place, "addr_" + arrName, spaceName});
         irs += new RDEREF_IR({place, "addr_" + place});
-
     }
     if (node->type == NodeType::ExpFieldAccess) {
         string structName = MGR.get_t("struct");
@@ -483,12 +483,15 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
         std::string var_name = idOf(c[0]);
         auto var_entry = SYMBOL_TABLE.find(var_name, EntryType::FIELD);
         tag_name = MGR.get_v(var_entry);
+        if (MGR.isRef(var_entry)) {
+            irs.push_back(new ASSIGN_IR({"addr_" + place, tag_name}));
+        } else {
+            irs.push_back(new REF_IR({"addr_" + place, tag_name}));
+        }
         irs.push_back(new ASSIGN_IR({place, tag_name}));
     }
     if (node->type == NodeType::ExpInt) {
-        irs.push_back(new ASSIGN_IR({
-                                            std::move(place),
-                                            "#" + std::string(c[0]->text)}));
+        irs.push_back(new ASSIGN_IR({std::move(place), "#" + std::string(c[0]->text)}));
     }
     if (node->type == NodeType::ExpChar) {
 //        expression = new Expression{

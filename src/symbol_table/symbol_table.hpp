@@ -163,7 +163,7 @@ struct SymbolTable {
             auto name = entry->name();
             auto vec = table_map[name];
             vec.pop_back();
-            delete entry;
+//            delete entry;
         }
         scope_stack.pop_back();
     }

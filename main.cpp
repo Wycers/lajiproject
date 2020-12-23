@@ -38,8 +38,8 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-
     auto irs = program->generate();
+    std::freopen("/home/wycer/test_env/test.ir", "w", stdout);
     for (auto ir: irs) {
         cout << ir->str() << endl;
     }
