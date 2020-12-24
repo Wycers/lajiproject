@@ -441,7 +441,13 @@ struct StructSpecifier {
 
     explicit StructSpecifier(Node *node) {
         Struct *structure = new Struct;
-        structure->name = idOf(node->children[1]);
+        string name = idOf(node->children[1]);
+        auto entry = SYMBOL_TABLE.find(name, EntryType::TYPE);
+        if (entry != nullptr && entry->type->category == Category::STRUCT) {
+            type = entry->type;
+            return;
+        }
+        structure->name = name;
         structure->fields = std::vector<Field *>();
 
         if (node->type == NodeType::StructSpecifierWithBody) {

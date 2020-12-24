@@ -456,13 +456,6 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
         string structName = MGR.get_t("struct");
         irs += exp1->generate(structName);
 
-        if (exp1->node->type == NodeType::ExpId) {
-            auto tmp = irs.back();
-            irs.pop_back();
-            irs += new REF_IR(tmp->args);
-        }
-
-
         std::string field_name = idOf(c[2]);
 
         string fieldName = MGR.get_t(field_name);
@@ -472,7 +465,7 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
         int space = 0;
         for (auto field: fields) {
             if (field->name == field_name) {
-                irs += new ADD_IR({"addr_" + place, structName, "#" + to_string(space)});
+                irs += new ADD_IR({"addr_" + place, "addr_" + structName, "#" + to_string(space)});
                 irs += new RDEREF_IR({place, "addr_" + place});
                 break;
             }
