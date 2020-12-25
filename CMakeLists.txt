@@ -11,16 +11,17 @@ include_directories(${CMAKE_SOURCE_DIR}/src/error)
 include_directories(${CMAKE_SOURCE_DIR}/src/ir)
 include_directories(${CMAKE_SOURCE_DIR}/src/symbol_table)
 include_directories(${CMAKE_SOURCE_DIR}/src/semantic_analysis)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/src/optimizer)
 
 
 add_executable(splc
         main.cpp
-        ./src/error/error.cpp
-        ./src/node/node.cpp
-        ./src/semantic_analysis/semantic_analysis.hpp
+        src/error/error.cpp
+        src/node/node.cpp
+        src/semantic_analysis/semantic_analysis.hpp
+        src/semantic_analysis/basic.hpp
         src/ir/ir.hpp
         src/ir/ir_generator.hpp
-
-        src/semantic_analysis/basic.hpp
-        )
+        src/optimizer/optimizer.hpp
+        src/optimizer/cfg.cpp
+        src/optimizer/dag.cpp)

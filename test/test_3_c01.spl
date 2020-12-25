@@ -1,15 +1,5 @@
-int test(int a , int b) {
-    write(a);
-
-    write(b);
-
-    return a;
-}
-
-int main()
-{
-    int m = read();
-    int n = read();
-    test(m, n);
+int main() {
+    int a, b, c, d;
+    a = b + c;
     return 0;
 }

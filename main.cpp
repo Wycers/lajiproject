@@ -4,6 +4,7 @@
 #include "src/semantic_analysis/semantic_analysis.hpp"
 #include "src/ir/ir_generator.hpp"
 #include "syntax.tab.c"
+#include "optimizer.hpp"
 
 int main(int argc, char **argv) {
 
@@ -39,15 +40,21 @@ int main(int argc, char **argv) {
     }
 
     auto irs = program->generate();
-    std::freopen("/home/wycer/test_env/test.ir", "w", stdout);
+//    std::freopen("/home/wycer/test_env/ir", "w", stdout);
+//    for (auto ir: irs) {
+//        cout << ir->str() << endl;
+//    }
+
+
+    auto opt_irs = optimize(irs);
+    std::freopen("/home/wycer/test_env/ir_opt", "w", stdout);
     for (auto ir: irs) {
         cout << ir->str() << endl;
     }
-
+    fclose(stdout);
 
     /* SYMBOL_TABLE.print(); */
 
-    fclose(stdout);
     return 0;
 
 }
