@@ -8,13 +8,13 @@ IRList optimize(IRList irs) {
 
     auto last = irs.begin();
     for (auto i = irs.begin(); i != irs.end(); ++i) {
-        if (i + 1 == irs.end() || typeid(**i) == typeid(FUNCTION_IR)) {
+        if (i + 1 == irs.end() || typeid(**(i + 1)) == typeid(FUNCTION_IR)) {
             if (last == i) {
                 continue;
             }
-            IRList tmp = std::vector<IR *>(last, i);
+            IRList tmp = std::vector<IR *>(last, i + 1);
             cfgs.push_back(new CFG(tmp));
-            last = i;
+            last = i + 1;
         }
     }
 

@@ -1,5 +1,11 @@
 int main() {
     int a, b, c, d;
-    a = b + c;
+    a = a + b;
+    b = a - c;
+    c = a + b;
+    d = read();
+    d = a + 1;
+    d = read();
+    write(d);
     return 0;
 }
