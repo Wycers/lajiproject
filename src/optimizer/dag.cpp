@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 #define INNER_DCE
-//#define INNER_CP
+#define INNER_CP
 #define INNER_CSE
 #define INNER_CE
 
@@ -60,31 +60,7 @@ DAG::DAG(IRList irs) {
 #ifdef INNER_CP
                 node1 = bubble(node1);
 #endif
-                if (node1->ir != nullptr && (
-                        node1->ir->irType == IRType::IR_ADD ||
-                        node1->ir->irType == IRType::IR_SUB ||
-                        node1->ir->irType == IRType::IR_MUL ||
-                        node1->ir->irType == IRType::IR_DIV
-                )) {
-                    if (node1->ir->irType == IRType::IR_ADD) {
-                        curNode->ir = new ADD_IR(node1->ir->args);
-                    }
-                    if (node1->ir->irType == IRType::IR_SUB) {
-                        curNode->ir = new SUB_IR(node1->ir->args);
-                    }
-                    if (node1->ir->irType == IRType::IR_MUL) {
-                        curNode->ir = new MUL_IR(node1->ir->args);
-                    }
-                    if (node1->ir->irType == IRType::IR_DIV) {
-                        curNode->ir = new DIV_IR(node1->ir->args);
-                    }
-                    curNode->ir->args[0] = ir->args[0];
-                    curNode->children.clear();
-                    curNode->children.push_back(node1->children[0]);
-                    curNode->children.push_back(node1->children[1]);
-                } else {
-                    curNode->children.push_back(node1);
-                }
+                curNode->children.push_back(node1);
                 addNode(ir->args[0], curNode);
             }
                 break;
