@@ -4,11 +4,13 @@
 
 #include "cfg.h"
 #include <fstream>
+#include <unordered_set>
 
 using std::cout, std::endl;
 
 
 IRList &operator+=(IRList &a, const IRList b);
+
 IRList &operator+=(IRList &a, IR *b);
 
 void CFG::clear() {
@@ -157,7 +159,93 @@ IRList CFG::optimize() {
 
     for (auto block : blocks) {
         res += block->optimize();
+        cout << "==========================" << endl;
     }
+
+
+    std::unordered_set<std::string> left, right;
+    bool effect = true;
+    while (effect) {
+        effect = false;
+        left.clear();
+        right.clear();
+
+        for (auto ir : res) {
+            switch (ir->irType) {
+                case IRType::IR_ASSIGN:
+                    left.insert(ir->args[0]);
+                    right.insert(ir->args[1]);
+                    break;
+                case IRType::IR_ADD:
+                case IRType::IR_SUB:
+                case IRType::IR_MUL:
+                case IRType::IR_DIV:
+                    left.insert(ir->args[0]);
+                    right.insert(ir->args[1]);
+                    right.insert(ir->args[2]);
+                    break;
+                case IRType::IR_RET:
+                case IRType::IR_ARG:
+                case IRType::IR_WRITE:
+                    right.insert(ir->args[0]);
+                    break;
+                case IRType::IR_REF:
+                    left.insert(ir->args[0]);
+                    right.insert(ir->args[1]);
+                case IRType::IR_RDEREF:
+                    left.insert(ir->args[0]);
+                    right.insert(ir->args[1]);
+                    break;
+                case IRType::IR_IF:
+                    right.insert(ir->args[0]);
+                    right.insert(ir->args[2]);
+                    break;
+                case IRType::IR_LDEREF:
+                case IRType::IR_CALL:
+                case IRType::IR_LABEL:
+                case IRType::IR_FUNCTION:
+                case IRType::IR_GOTO:
+                case IRType::IR_DEC:
+                case IRType::IR_PARAM:
+                case IRType::IR_READ:
+                    break;
+            }
+        }
+
+        for (auto iter = res.begin(); iter != res.end(); ++iter) {
+            auto ir = *iter;
+            switch (ir->irType) {
+                case IRType::IR_ASSIGN:
+                case IRType::IR_ADD:
+                case IRType::IR_SUB:
+                case IRType::IR_MUL:
+                case IRType::IR_DIV:
+                case IRType::IR_REF:
+                case IRType::IR_RDEREF:
+                    if (right.find(ir->args[0]) == right.end()) {
+                        iter = res.erase(iter);
+                        effect = true;
+                    }
+                    break;
+                case IRType::IR_IF:
+                case IRType::IR_RET:
+                case IRType::IR_ARG:
+                case IRType::IR_WRITE:
+                case IRType::IR_LDEREF:
+                case IRType::IR_CALL:
+                case IRType::IR_LABEL:
+                case IRType::IR_FUNCTION:
+                case IRType::IR_GOTO:
+                case IRType::IR_DEC:
+                case IRType::IR_PARAM:
+                case IRType::IR_READ:
+                    break;
+            }
+        }
+
+    }
+
+
     return res;
 }
 
@@ -174,7 +262,8 @@ IRList Block::optimize() {
     return irs;
 }
 
-Block::Block(IRList irs) {
+Block::Block(IRList
+             irs) {
     this->irs = irs;
 }
 
