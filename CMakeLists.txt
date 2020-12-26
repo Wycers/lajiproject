@@ -24,4 +24,5 @@ add_executable(splc
         src/ir/ir_generator.hpp
         src/optimizer/optimizer.hpp
         src/optimizer/cfg.cpp
-        src/optimizer/dag.cpp)
+        src/optimizer/dag.cpp
+    )

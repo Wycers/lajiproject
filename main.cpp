@@ -5,6 +5,7 @@
 #include "src/ir/ir_generator.hpp"
 #include "syntax.tab.c"
 #include "optimizer.hpp"
+#include <fstream>
 
 int main(int argc, char **argv) {
 
@@ -40,19 +41,21 @@ int main(int argc, char **argv) {
     }
 
     auto irs = program->generate();
-//    std::freopen("/home/wycer/test_env/ir", "w", stdout);
-//    for (auto ir: irs) {
-//        cout << ir->str() << endl;
-//    }
+
+    std::ofstream out;
+    out.open("/home/wycer/test_env/ir");
+    for (auto ir: irs) {
+        out << ir->str() << endl;
+    }
+    out.close();
 
 
     auto opt_irs = optimize(irs);
-    std::freopen("/home/wycer/test_env/ir_opt", "w", stdout);
-    for (auto ir: irs) {
-        cout << ir->str() << endl;
+    out.open("/home/wycer/test_env/ir_opt");
+    for (auto ir: opt_irs) {
+        out << ir->str() << endl;
     }
-    fclose(stdout);
-
+    out.close();
     /* SYMBOL_TABLE.print(); */
 
     return 0;

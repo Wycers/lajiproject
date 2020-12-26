@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "ir.hpp"
-#include "dag.h"
 #include <vector>
 #include <unordered_map>
+#include "dag.h"
 
 struct Block {
     int idx;
@@ -19,7 +18,7 @@ struct Block {
 
     Block(IRList irs);
 
-    void optimize();
+    IRList optimize();
 
     std::string str();
 };
@@ -47,5 +46,5 @@ struct CFG {
 
     std::string str();
 
-    void optimize();
+    IRList optimize();
 };

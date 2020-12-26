@@ -22,9 +22,9 @@ IRList optimize(IRList irs) {
         cfg->print(cfg->name);
     }
 
+    auto irs_opt = IRList();
     for (auto cfg: cfgs) {
-        cfg->optimize();
+        irs_opt += cfg->optimize();
     }
-
-    return irs;
+    return irs_opt;
 }

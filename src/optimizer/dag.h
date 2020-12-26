@@ -13,6 +13,9 @@ struct DagNode {
     std::vector<DagNode *> children;
     IR *ir;
 
+    int id;
+    bool live = true;
+
     DagNode();
 };
 
@@ -24,6 +27,8 @@ struct DAG {
     std::unordered_map<std::string, DagNode *> mp;
 
     DAG(IRList irs);
+
+    void optimize();
 
     IRList restore();
 

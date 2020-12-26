@@ -40,6 +40,7 @@ struct Args {
     Exp *exp;
 
     explicit Args(Node *node) {
+        tags.clear();
         exp = new Exp(node->children[0]);
         Field *e = exp->expression->field;
         fields = std::vector<Field *>{e};

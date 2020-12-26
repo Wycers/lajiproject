@@ -7,6 +7,10 @@
 
 using std::cout, std::endl;
 
+
+IRList &operator+=(IRList &a, const IRList b);
+IRList &operator+=(IRList &a, IR *b);
+
 void CFG::clear() {
     edges.clear();
     blocks.clear();
@@ -148,15 +152,26 @@ std::string CFG::str() {
     return name;
 }
 
-void CFG::optimize() {
+IRList CFG::optimize() {
+    IRList res = IRList();
+
     for (auto block : blocks) {
-        block->optimize();
+        res += block->optimize();
     }
+    return res;
 }
 
-void Block::optimize() {
+IRList Block::optimize() {
     this->dag = new DAG(irs);
     this->dag->print(this->str());
+    this->dag->optimize();
+    auto irs = this->dag->restore();
+    this->dag->print(this->str());
+    for (auto ir : irs) {
+        cout << ir->str() << endl;
+    }
+    cout << endl;
+    return irs;
 }
 
 Block::Block(IRList irs) {

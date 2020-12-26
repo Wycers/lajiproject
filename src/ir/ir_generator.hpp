@@ -417,18 +417,20 @@ IRList Exp::generate(string place, pair<string, string> lbs) {
                 irs += new WRITE_IR({args->tags[i]});
             }
         } else {
-            irs += args->generate();
+            if (args) {
+                irs += args->generate();
 
-            int len = args->tags.size();
+                int len = args->tags.size();
 
-            for (int i = len - 1; i >= 0; --i) {
-                auto field = args->fields[i];
-                auto tag = args->tags[i];
+                for (int i = len - 1; i >= 0; --i) {
+                    auto field = args->fields[i];
+                    auto tag = args->tags[i];
 
-                if (field->type->category == Category::PRIMITIVE) {
-                    irs.push_back(new ARG_IR({tag}));
-                } else {
-                    irs.push_back(new ARG_IR({"addr_" + tag}));
+                    if (field->type->category == Category::PRIMITIVE) {
+                        irs.push_back(new ARG_IR({tag}));
+                    } else {
+                        irs.push_back(new ARG_IR({"addr_" + tag}));
+                    }
                 }
             }
             irs += new CALL_IR({place, func_name});
