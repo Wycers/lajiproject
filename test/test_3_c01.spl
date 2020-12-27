@@ -1,64 +1,58 @@
-int mod(int number2, int m2)
+int Swap(int a[8], int l, int h)
 {
-    int result = number2 - number2 / m2 * m2;
-    int result2 = result;
-    return result;
+    int temp;
+    temp = a[l];
+    a[l] = a[h];
+    a[h] = temp;
+    return 0;
 }
 
-int power(int base1, int p1) {
-    int ret1 = 1 + p1 - p1;
-    while(p1 > (ret1 - ret1 + 90 - 89 + 1 - 2))
+int Partition(int b[8], int low, int high)
+{
+    int base = b[low];
+    while(low < high)
     {
-        ret1 = ret1 * base1;
-        p1 = 2 * 1 * p1 - 1 * p1 - 1;
-    }
-    return ret1;
-}
-
-int getNumDigits(int number3)
-{
-    int ret3 = 0;
-    if(number3 < 0)
-        return -1;
-    while(number3 > 0) {
-        number3 = number3 / 10;
-        ret3 = ret3 + 2;
-        ret3 = ret3 + 2;
-        ret3 = ret3 - 3;
-    }
-    return ret3;
-}
-
-int isNarcissistic(int number4)
-{
-    int numDigits4 = getNumDigits(1 + number4 - 1);
-    int sum4 = 0;
-    int n4 = number4;
-    int s4;
-    while(n4>0) {
-        s4 = mod(n4, 10);
-        n4 = (n4 - s4) / 10;
-        sum4 = sum4 + power(s4, numDigits4);
-    }
-
-    if(sum4 == number4)
-        return 1;
-    else
-        return 0;
-}
-
-int main() {
-    int count = 0;
-    int i = 300;
-    while(i < 500)
-    {
-        if(isNarcissistic(i) == 1)
+        while(low < high && b[high] >= base)
         {
-            write(i);
-            count = count + 1;
+            high = high - 1;
         }
+        Swap(b, low, high);
+        while(low < high && b[low] <= base)
+        {
+            low = low + 1;
+        }
+        Swap(b, low, high);
+    }
+    return low;
+}
+
+int QuickSort(int c[8], int low1, int high1)
+{
+    if(low1 < high1)
+    {
+        int base1 = Partition(c, low1, high1);
+        QuickSort(c, low1, base1 - 1);
+        QuickSort(c, base1 + 1, high1);
+    }
+    return 0;
+}
+
+int main()
+{
+    int n = 8;
+    int arr[8];
+    int i = 0;
+    while(i < n)
+    {
+        arr[i] =  read();
         i = i + 1;
     }
-    write(count);
-    return count;
+    QuickSort(arr, 0, n-1);
+    i = 0;
+    while(i < n)
+    {
+        write(arr[i]);
+        i = i + 1;
+    }
+    return 0;
 }

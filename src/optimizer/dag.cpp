@@ -30,10 +30,8 @@ DagNode *bubble(DagNode *curNode) {
 DAG::DAG(IRList irs) {
     nodes.clear();
 
-    cout << "DAG" << endl;
     for (auto ir : irs) {
         auto curNode = new DagNode();
-        cout << ir->str() << endl;
         switch (ir->irType) {
             case IRType::IR_DEC: {
                 curNode->info = "DEC";
@@ -151,10 +149,18 @@ DAG::DAG(IRList irs) {
                                 break;
                         }
                         auto nodeX = getNode("#" + std::to_string(res));
-
                         curNode->ir = new ASSIGN_IR({ir->args[0], nodeX->name});
                         curNode->children.clear();
                         curNode->children.push_back(nodeX);
+                    } else if (cnodes[0]->name[0] != '#' && cnodes[1]->name[0] != '#') {
+                        if (curNode->ir->irType == IRType::IR_SUB) {
+                            if (curNode->ir->args[1] == curNode->ir->args[2]) {
+                                auto nodeX = getNode("#0");
+                                curNode->ir = new ASSIGN_IR({ir->args[0], nodeX->name});
+                                curNode->children.clear();
+                                curNode->children.push_back(nodeX);
+                            }
+                        }
                     } else {
                         DagNode *nodeX = ao1(ir, cnodes);
                         if (nodeX != nullptr) {
@@ -238,7 +244,6 @@ DAG::DAG(IRList irs) {
                 break;
         }
     }
-    cout << endl;
 }
 
 bool usedIn(IR *ir, std::string name) {
@@ -336,19 +341,47 @@ bool isCalculation(IR *ir) {
     switch (ir->irType) {
         case IR_ADD:
         case IR_SUB:
-        case IR_MUL:
-        case IR_DIV:
             return true;
         default:
             return false;
     }
 }
 
+std::pair<bool, int> extractNumber(std::string str) {
+    if (str[0] != '#') {
+        return std::make_pair(false, 0);
+    }
+    return std::make_pair(true, std::stoi(str.substr(1)));
+}
+
+std::pair<std::string, int> calculate(std::string x, std::string y, std::string z) {
+    int sx = x[0] == '+' ? 1 : -1;
+    int sy = y[0] == '+' ? 1 : -1;
+    int sz = z[0] == '+' ? 1 : -1;
+    auto tx = x.substr(1);
+    auto ty = y.substr(1);
+    auto tz = z.substr(1);
+    auto xx = extractNumber(tx);
+    auto yy = extractNumber(ty);
+    auto zz = extractNumber(tz);
+
+    if (xx.first && yy.first) {
+        return std::make_pair(z, sx * xx.second + sy * yy.second);
+    }
+    if (yy.first && zz.first) {
+        return std::make_pair(x, sy * yy.second + sz * zz.second);
+    }
+    if (zz.first && xx.first) {
+        return std::make_pair(y, sx * xx.second + sz * zz.second);
+    }
+    return std::make_pair("#", 0);
+}
+
 IRList VerySimpleAndNaiveAlgebraicOptimization(IRList irs) {
     IRList res;
     res.clear();
 
-    std::vector<int> cleanTags;
+    std::unordered_set<int> cleanTags;
     cleanTags.clear();
 
     for (int i = 0; i < irs.size(); ++i) {
@@ -358,6 +391,9 @@ IRList VerySimpleAndNaiveAlgebraicOptimization(IRList irs) {
             continue;
 
         std::string target = ir->args[0];
+        if (!usedIn(irs[i], target))
+            continue;
+
         for (int j = i - 1; j >= 0; --j) {
             if (changedIn(irs[j], target)) {
                 if (isCalculation(irs[j])) {
@@ -377,15 +413,70 @@ IRList VerySimpleAndNaiveAlgebraicOptimization(IRList irs) {
             chance = -1;
             break;
         }
-        if (chance == 1)
+        if (chance == -1)
             continue;
 
-        cout << ir->str() << endl;
-        cout << irs[chance]->str() << endl;
-        cout << endl;
+        // just do it!
+        auto tir = irs[chance];
+
+        std::string z = "";
+        int cursor = 0;
+
+        if (ir->args[1] == target) {
+            z = ir->args[cursor = 2];
+        } else {
+            z = ir->args[cursor = 1];
+        }
+
+
+        std::pair<std::string, int> ans = std::make_pair("#", 0);
+        if (ir->irType == IR_ADD) {
+            if (tir->irType == IR_ADD) {
+                // (x + y) + z or z + (x + y)
+                ans = calculate("+" + x, "+" + y, "+" + z);
+            } else {
+                // (x - y) + z or z + (x - y)
+                ans = calculate("+" + x, "-" + y, "+" + z);
+            }
+        } else {
+            if (tir->irType == IR_ADD) {
+                if (cursor == 1) {
+                    // z - (x + y)
+                    ans = calculate("-" + x, "-" + y, "+" + z);
+                } else {
+                    // (x + y) - z
+                    ans = calculate("+" + x, "+" + y, "-" + z);
+                }
+            } else {
+                if (cursor == 1) {
+                    // z - (x - y)
+                    ans = calculate("-" + x, "+" + y, "+" + z);
+                } else {
+                    // (x - y) - z
+                    ans = calculate("+" + x, "-" + y, "-" + z);
+                }
+            }
+        }
+
+        if (ans.first == "#") {
+            continue;
+        }
+
+        cleanTags.insert(chance);
+        if (ans.first[0] == '+') {
+            irs[i] = new ADD_IR({target, "#" + std::to_string(ans.second), ans.first.substr(1)});
+        } else {
+            irs[i] = new SUB_IR({target, "#" + std::to_string(ans.second), ans.first.substr(1)});
+        }
     }
 
-    return irs;
+    for (int i = 0; i < irs.size(); ++i) {
+        if (cleanTags.find(i) != cleanTags.end())
+            continue;
+        res += irs[i];
+    }
+
+    return res;
 }
 
 IRList DAG::restore() {
@@ -674,8 +765,6 @@ DagNode *DAG::ao1(IR *ir, DagNode **cnodes) {
     if (cursor == -1)
         return nullptr;
     DagNode *nodeX = nullptr;
-
-    cout << "OMG:" << n << endl;
     int res = 0;
     switch (ir->irType) {
         case IRType::IR_ADD:
@@ -730,8 +819,6 @@ DagNode *DAG::ao2(IR *ir, DagNode **cnodes) {
     if (cursor == -1)
         return nullptr;
     DagNode *nodeX = nullptr;
-
-    cout << "OMG:" << n << endl;
     int res = 0;
     switch (ir->irType) {
         case IRType::IR_MUL:
@@ -799,7 +886,6 @@ DagNode *DAG::ao2(IR *ir, DagNode **cnodes) {
 
     IR *finalIr = nullptr;
     DagNode *node1 = nullptr, *node2 = nullptr;
-    cout << "nmdasdasdad " << n << " " << m << endl;
     if (cursor == 0) {
         // n x (a x b)
         if (tmp_cursor == 0) {
@@ -974,9 +1060,7 @@ DagNode *DAG::ao2(IR *ir, DagNode **cnodes) {
     fuck->children.clear();
     fuck->children.push_back(node1);
     fuck->children.push_back(node2);
-    cout << "!!!!!" << fuck->ir << endl;
     return fuck;
-
 }
 
 DagNode::DagNode() {

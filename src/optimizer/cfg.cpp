@@ -5,7 +5,6 @@
 #include "cfg.h"
 #include <fstream>
 #include <unordered_set>
-#include <algorithm>
 
 using std::cout, std::endl;
 
@@ -21,7 +20,7 @@ void CFG::clear() {
 }
 
 Edge *CFG::addEdge(Block *a, Block *b) {
-    cout << a->str() << "==========>" << b->str() << endl;
+//    cout << a->str() << "==========>" << b->str() << endl;
     auto edge = new Edge{
             b->idx,
             a->head
@@ -34,10 +33,10 @@ Edge *CFG::addEdge(Block *a, Block *b) {
 CFG::CFG(IRList irs) {
     this->clear();
 
-    for (auto ir : irs) {
-        cout << ir->str() << endl;
-    }
-    cout << endl;
+//    for (auto ir : irs) {
+//        cout << ir->str() << endl;
+//    }
+//    cout << endl;
 
     name = irs.front()->args[0];
 
@@ -76,7 +75,7 @@ CFG::CFG(IRList irs) {
     }
 
     for (auto block : blocks) {
-        cout << "back: " << block->irs.back()->str() << endl;
+//        cout << "back: " << block->irs.back()->str() << endl;
         auto lastIR = block->irs.back();
         std::string target;
         if (typeid(*lastIR) == typeid(GOTO_IR)) {
@@ -142,12 +141,6 @@ Block *CFG::addBlock(IRList irs) {
     block->irs = irs;
 
     blocks.push_back(block);
-    cout << "===> New block" << endl;
-    for (auto ir: irs) {
-        cout << ir->str() << endl;
-    }
-    cout << endl;
-
     return block;
 }
 
@@ -160,7 +153,6 @@ IRList CFG::optimize() {
 
     for (auto block : blocks) {
         res += block->optimize();
-        cout << "==========================" << endl;
     }
 
 
@@ -274,10 +266,10 @@ IRList Block::optimize() {
     irs = dag_opt->restore();
 
 //    this->dag->print(this->str());
-    for (auto ir : irs) {
-        cout << ir->str() << endl;
-    }
-    cout << endl;
+//    for (auto ir : irs) {
+//        cout << ir->str() << endl;
+//    }
+//    cout << endl;
     return irs;
 }
 

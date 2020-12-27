@@ -4,7 +4,8 @@
 
 #include "semantic_analysis.hpp"
 
-using std::to_string, std::string;
+using std::to_string;
+using std::string;
 
 IRList &operator+=(IRList &a, const IRList b) {
     a.insert(a.end(), b.begin(), b.end());
@@ -33,7 +34,7 @@ struct Manager {
         clear();
     }
 
-    std::string setRef(SymbolTableEntry *entry) {
+    void setRef(SymbolTableEntry *entry) {
         refMp[entry] = true;
     }
 
@@ -133,7 +134,7 @@ IRList FunDec::generate() {
 IRList CompSt::generate() {
     auto irs = IRList();
     SYMBOL_TABLE.scope_push(ret_type);
-    SYMBOL_TABLE.print();
+//    SYMBOL_TABLE.print();
     for (auto param : params) {
         auto entry = new SymbolTableEntry(param, node->lineno);
         irs.push_back(new PARAM_IR({MGR.get_v(entry)}));

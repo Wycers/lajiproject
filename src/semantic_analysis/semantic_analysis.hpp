@@ -615,10 +615,10 @@ printf("lineno: %d\n", node->lineno);
         nextDefList = new DefList(node->children[1], insert_now);
         auto nextFields = nextDefList->fields;
         fields.insert(fields.end(), nextFields.begin(), nextFields.end());
-        for (auto field: fields) {
-            cout << field->name << endl;
-        }
-        cout << endl;
+//        for (auto field: fields) {
+//            cout << field->name << endl;
+//        }
+//        cout << endl;
     }
 }
 
@@ -701,7 +701,7 @@ CompSt::CompSt(Node *node, Type *ret_type, std::vector<Field *> params) : node(n
     SYMBOL_TABLE.scope_push(ret_type);
     for (auto param : params)
         SYMBOL_TABLE.insert(new SymbolTableEntry(param, node->lineno));
-    SYMBOL_TABLE.print();
+//    SYMBOL_TABLE.print();
     defList = new DefList(node->children[1], true);
     stmtList = new StmtList(node->children[2], ret_type);
 

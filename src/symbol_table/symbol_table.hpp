@@ -172,7 +172,6 @@ struct SymbolTable {
         int indent = 0;
         for (const auto &t : scope_stack) {
             for (auto entry : t) {
-
                 if (entry == nullptr)
                     return;
                 if (entry->entry_type == EntryType::FIELD) {
@@ -182,8 +181,8 @@ struct SymbolTable {
                 } else {
                     cout << to_str(entry->func, indent);
                 }
-                // cout << entry << endl;
-                cout << "\n";
+//                cout << entry << endl;
+//                cout << "\n";
             }
             indent += 2;
         }
