@@ -38,7 +38,8 @@ struct DAG {
 
     void print(std::string filename);
 
-    DagNode *aoNode(IR *pIr, DagNode *pNode[2]);
+    DagNode *ao1(IR *ir, DagNode *cnodes[2]);
+    DagNode *ao2(IR *ir, DagNode *cnodes[2]);
 };
 
 

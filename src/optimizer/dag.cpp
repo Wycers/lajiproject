@@ -6,6 +6,8 @@
 
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
 
 #define INNER_DCE
 #define INNER_CP
@@ -60,8 +62,14 @@ DAG::DAG(IRList irs) {
 #ifdef INNER_CP
                 node1 = bubble(node1);
 #endif
-                curNode->children.push_back(node1);
-                addNode(ir->args[0], curNode);
+                if (node1->name[0] == 't') {
+                    node1->name = ir->args[0];
+                    node1->ir->args[0] = ir->args[0];
+                    mp[ir->args[0]] = node1;
+                } else {
+                    curNode->children.push_back(node1);
+                    addNode(ir->args[0], curNode);
+                }
             }
                 break;
             case IRType::IR_REF: {
@@ -148,11 +156,17 @@ DAG::DAG(IRList irs) {
                         curNode->children.clear();
                         curNode->children.push_back(nodeX);
                     } else {
-                        DagNode *nodeX = aoNode(ir, cnodes);
+                        DagNode *nodeX = ao1(ir, cnodes);
                         if (nodeX != nullptr) {
                             curNode->ir = new ASSIGN_IR({ir->args[0], nodeX->name});
                             curNode->children.clear();
                             curNode->children.push_back(nodeX);
+                        } else {
+                            nodeX = ao2(ir, cnodes);
+                            if (nodeX != nullptr) {
+                                curNode = nodeX;
+                                curNode->name = ir->args[0];
+                            }
                         }
                     }
                 }
@@ -227,6 +241,153 @@ DAG::DAG(IRList irs) {
     cout << endl;
 }
 
+bool usedIn(IR *ir, std::string name) {
+    switch (ir->irType) {
+        case IRType::IR_ASSIGN:
+            if (ir->args[1] == name)
+                return true;
+            break;
+        case IRType::IR_ADD:
+        case IRType::IR_SUB:
+        case IRType::IR_MUL:
+        case IRType::IR_DIV:
+            if (ir->args[1] == name)
+                return true;
+            if (ir->args[2] == name)
+                return true;
+            break;
+        case IRType::IR_RET:
+        case IRType::IR_ARG:
+        case IRType::IR_WRITE:
+            if (ir->args[0] == name)
+                return true;
+            break;
+        case IRType::IR_LDEREF:
+            if (ir->args[0] == name)
+                return true;
+            if (ir->args[1] == name)
+                return true;
+            break;
+        case IRType::IR_REF:
+            if (ir->args[1] == name)
+                return true;
+            break;
+        case IRType::IR_RDEREF:
+            if (ir->args[1] == name)
+                return true;
+            break;
+        case IRType::IR_IF:
+            if (ir->args[0] == name)
+                return true;
+            if (ir->args[2] == name)
+                return true;
+            break;
+        case IRType::IR_READ:
+        case IRType::IR_CALL:
+        case IRType::IR_LABEL:
+        case IRType::IR_FUNCTION:
+        case IRType::IR_GOTO:
+        case IRType::IR_DEC:
+        case IRType::IR_PARAM:
+            break;
+    }
+    return false;
+}
+
+bool changedIn(IR *ir, std::string name) {
+    switch (ir->irType) {
+        case IRType::IR_ASSIGN:
+            if (ir->args[0] == name)
+                return true;
+            break;
+        case IRType::IR_ADD:
+        case IRType::IR_SUB:
+        case IRType::IR_MUL:
+        case IRType::IR_DIV:
+            if (ir->args[0] == name)
+                return true;
+            break;
+        case IRType::IR_RDEREF:
+        case IRType::IR_REF:
+            if (ir->args[0] == name)
+                return true;
+            break;
+            if (ir->args[0] == name)
+                return true;
+            break;
+        case IRType::IR_RET:
+        case IRType::IR_ARG:
+        case IRType::IR_WRITE:
+        case IRType::IR_LDEREF:
+        case IRType::IR_IF:
+        case IRType::IR_READ:
+        case IRType::IR_CALL:
+        case IRType::IR_LABEL:
+        case IRType::IR_FUNCTION:
+        case IRType::IR_GOTO:
+        case IRType::IR_DEC:
+        case IRType::IR_PARAM:
+            break;
+    }
+    return false;
+}
+
+bool isCalculation(IR *ir) {
+    switch (ir->irType) {
+        case IR_ADD:
+        case IR_SUB:
+        case IR_MUL:
+        case IR_DIV:
+            return true;
+        default:
+            return false;
+    }
+}
+
+IRList VerySimpleAndNaiveAlgebraicOptimization(IRList irs) {
+    IRList res;
+    res.clear();
+
+    std::vector<int> cleanTags;
+    cleanTags.clear();
+
+    for (int i = 0; i < irs.size(); ++i) {
+        auto ir = irs[i];
+        int chance = -1;
+        if (!isCalculation(ir))
+            continue;
+
+        std::string target = ir->args[0];
+        for (int j = i - 1; j >= 0; --j) {
+            if (changedIn(irs[j], target)) {
+                if (isCalculation(irs[j])) {
+                    chance = j;
+                }
+                break;
+            }
+        }
+        if (chance == -1)
+            continue;
+
+        std::string x = irs[chance]->args[1], y = irs[chance]->args[2];
+
+        for (int j = chance + 1; j < i; ++j) {
+            if (!usedIn(irs[j], target) && !changedIn(irs[j], x) && !changedIn(irs[j], y))
+                continue;
+            chance = -1;
+            break;
+        }
+        if (chance == 1)
+            continue;
+
+        cout << ir->str() << endl;
+        cout << irs[chance]->str() << endl;
+        cout << endl;
+    }
+
+    return irs;
+}
+
 IRList DAG::restore() {
     IRList irs;
     irs.clear();
@@ -242,7 +403,100 @@ IRList DAG::restore() {
         irs += node->ir;
     }
 
-    return irs;
+
+    std::unordered_set<std::string> used;
+    std::reverse(irs.begin(), irs.end());
+
+    bool effect = false;
+    while (effect) {
+        effect = false;
+        used.clear();
+
+        for (auto ir : irs) {
+            if (ir->irType == IRType::IR_IF) {
+                used.insert(ir->args[0]);
+                used.insert(ir->args[2]);
+            }
+        }
+
+        for (auto iter = irs.begin(); iter != irs.end();) {
+            auto ir = *iter;
+            switch (ir->irType) {
+                case IRType::IR_ASSIGN:
+                    if (used.find(ir->args[0]) == used.end()) {
+                        iter = irs.erase(iter);
+                        effect = true;
+                    } else {
+                        used.erase(ir->args[0]);
+                        used.insert(ir->args[1]);
+                        ++iter;
+                    }
+                    break;
+                case IRType::IR_ADD:
+                case IRType::IR_SUB:
+                case IRType::IR_MUL:
+                case IRType::IR_DIV:
+                    if (used.find(ir->args[0]) == used.end()) {
+                        iter = irs.erase(iter);
+                        effect = true;
+                    } else {
+                        used.erase(ir->args[0]);
+                        used.insert(ir->args[1]);
+                        used.insert(ir->args[2]);
+                        ++iter;
+                    }
+                    break;
+                case IRType::IR_RET:
+                case IRType::IR_ARG:
+                case IRType::IR_WRITE:
+                    used.insert(ir->args[0]);
+                    ++iter;
+                    break;
+                case IRType::IR_LDEREF:
+                    used.insert(ir->args[0]);
+                    used.insert(ir->args[1]);
+                    ++iter;
+                    break;
+                case IRType::IR_REF:
+                    if (used.find(ir->args[0]) == used.end()) {
+                        iter = irs.erase(iter);
+                        effect = true;
+                    } else {
+                        used.insert(ir->args[1]);
+                        ++iter;
+                    }
+                    break;
+                case IRType::IR_RDEREF:
+                    if (used.find(ir->args[0]) == used.end()) {
+                        iter = irs.erase(iter);
+                        effect = true;
+                    } else {
+                        used.insert(ir->args[1]);
+                        ++iter;
+                    }
+                    break;
+                case IRType::IR_IF:
+                    used.insert(ir->args[0]);
+                    used.insert(ir->args[2]);
+                    ++iter;
+                    break;
+                case IRType::IR_CALL:
+                case IRType::IR_LABEL:
+                case IRType::IR_FUNCTION:
+                case IRType::IR_GOTO:
+                case IRType::IR_DEC:
+                case IRType::IR_PARAM:
+                case IRType::IR_READ:
+                    ++iter;
+                    break;
+            }
+        }
+    }
+
+
+    std::reverse(irs.begin(), irs.end());
+
+    return VerySimpleAndNaiveAlgebraicOptimization(irs);
 }
 
 void DAG::print(std::string filename) {
@@ -261,7 +515,6 @@ void DAG::print(std::string filename) {
     for (auto node : nodes) {
         if (node->live == false)
             continue;
-        cout << "name:" << node->name << endl;
 
         out << std::to_string(node->id) << " [label=\" "
             << (node->name[0] == '#' ? node->name.substr(1) : node->name) << endl;
@@ -353,7 +606,6 @@ DagNode *DAG::getNode(std::string name) {
 }
 
 void DAG::optimize() {
-
 #ifdef INNER_CE
     for (auto node : nodes) {
         if (node->live == false)
@@ -375,17 +627,14 @@ void DAG::optimize() {
         for (auto node: nodes) {
             if (node->live == false)
                 continue;
-            cout << node->name << endl;
             for (auto child : node->children) {
-                cout << child->name << endl;
                 out[child] = true;
             }
-            cout << endl;
         }
         for (auto node : nodes) {
             if (node->live == false)
                 continue;
-            cout << "qwq:" << node->name << endl;
+
             if (node->name.rfind("v_", 0) == 0) {
                 continue;
             }
@@ -410,7 +659,8 @@ void DAG::optimize() {
 #endif
 }
 
-DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
+DagNode *DAG::ao1(IR *ir, DagNode **cnodes) {
+
     int cursor = -1, n = 0;
     if (cnodes[0]->name[0] == '#') {
         cursor = 0;
@@ -462,6 +712,49 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
         return nodeX;
     }
 
+    return nullptr;
+}
+
+DagNode *DAG::ao2(IR *ir, DagNode **cnodes) {
+
+    int cursor = -1, n = 0;
+    if (cnodes[0]->name[0] == '#') {
+        cursor = 0;
+        n = std::stoi(cnodes[0]->name.substr(1));
+    }
+    if (cnodes[1]->name[0] == '#') {
+        cursor = 1;
+        n = std::stoi(cnodes[1]->name.substr(1));
+    }
+
+    if (cursor == -1)
+        return nullptr;
+    DagNode *nodeX = nullptr;
+
+    cout << "OMG:" << n << endl;
+    int res = 0;
+    switch (ir->irType) {
+        case IRType::IR_MUL:
+            if (n == 2) {
+                auto tmp = cnodes[cursor ^ 1];
+                nodeX = new DagNode();
+                nodeX->ir = new ADD_IR({"", tmp->name, tmp->name});
+                nodeX->children.clear();
+                nodeX->children.push_back(tmp);
+                nodeX->children.push_back(tmp);
+            }
+            break;
+        case IRType::IR_SUB:
+        case IRType::IR_ADD:
+        case IRType::IR_DIV:
+        default:
+            break;
+    }
+
+    if (nodeX != nullptr) {
+        return nodeX;
+    }
+
     DagNode *tmp = cnodes[cursor ^ 1];
     if (tmp->ir == nullptr)
         return nullptr;
@@ -495,6 +788,15 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
     if (tmp_cursor == -1) {
         return nullptr;
     }
+
+    auto b = tmp_cnodes[tmp_cursor ^ 1];
+    if (b->name == ir->args[0]) {
+        return nullptr;
+    }
+    if (b->name == tmp->name) {
+        return nullptr;
+    }
+
     IR *finalIr = nullptr;
     DagNode *node1 = nullptr, *node2 = nullptr;
     cout << "nmdasdasdad " << n << " " << m << endl;
@@ -521,20 +823,14 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
                     // n - (m x b)
                     if (tmp->ir->irType == IRType::IR_ADD) {
                         // n - (m + b)
-//                        node1 = getNode("#" + std::to_string(n - m));
-//                        node2 = tmp_cnodes[tmp_cursor ^ 1];
-//                        finalIr = new ADD_IR({});
-
-                        return nullptr;
+                        node1 = getNode("#" + std::to_string(n - m));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new SUB_IR({});
                     } else {
                         // n - (m - b)
-                        if (n - m >= 0) {
-                            node1 = getNode("#" + std::to_string(n - m));
-                            node2 = tmp_cnodes[tmp_cursor ^ 1];
-                            finalIr = new ADD_IR({});
-                        } else {
-                            return nullptr;
-                        }
+                        node1 = getNode("#" + std::to_string(n - m));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new ADD_IR({});
                     }
                     break;
                 case IRType::IR_MUL:
@@ -550,15 +846,34 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
             switch (ir->irType) {
                 case IRType::IR_ADD:
                     // n + (a x m)
-
+                    if (tmp->ir->irType == IRType::IR_ADD) {
+                        // n + (a + m)
+                        node1 = getNode("#" + std::to_string(n + m));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new ADD_IR({});
+                    } else {
+                        // n + (a - m)
+                        node1 = getNode("#" + std::to_string(n - m));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new ADD_IR({});
+                    }
                     break;
                 case IRType::IR_SUB:
-                    // n x (a x m)
-
+                    // n - (a x m)
+                    if (tmp->ir->irType == IRType::IR_ADD) {
+                        // n - (a + m)
+                        node1 = getNode("#" + std::to_string(n + m));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new SUB_IR({});
+                    } else {
+                        // n - (a - m)
+                        node1 = getNode("#" + std::to_string(n + m));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new SUB_IR({});
+                    }
                     break;
                 case IRType::IR_MUL:
                     // n x (a x m)
-
                     break;
                 case IRType::IR_DIV:
                     // n x (a x m)
@@ -572,11 +887,31 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
             switch (ir->irType) {
                 case IRType::IR_ADD:
                     // (m x b) + n
-
+                    if (tmp->ir->irType == IRType::IR_ADD) {
+                        // (m + b) + n
+                        node1 = tmp_cnodes[tmp_cursor ^ 1];
+                        node2 = getNode("#" + std::to_string(m + n));
+                        finalIr = new ADD_IR({});
+                    } else {
+                        // (m - b) + n
+                        node1 = getNode("#" + std::to_string(m + n));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new SUB_IR({});
+                    }
                     break;
                 case IRType::IR_SUB:
                     // (m x b) - n
-
+                    if (tmp->ir->irType == IRType::IR_ADD) {
+                        // (m + b) - n
+                        node1 = tmp_cnodes[tmp_cursor ^ 1];
+                        node2 = getNode("#" + std::to_string(m - n));
+                        finalIr = new ADD_IR({});
+                    } else {
+                        // (m - b) - n
+                        node1 = getNode("#" + std::to_string(m - n));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new ADD_IR({});
+                    }
                     break;
                 case IRType::IR_MUL:
                     // (m x b) * n
@@ -592,11 +927,31 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
             switch (ir->irType) {
                 case IRType::IR_ADD:
                     // (a x m) + n
-
+                    if (tmp->ir->irType == IRType::IR_ADD) {
+                        // (a + m) + n
+                        node1 = getNode("#" + std::to_string(m + n));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new ADD_IR({});
+                    } else {
+                        // (a - m) + n
+                        node1 = tmp_cnodes[tmp_cursor ^ 1];
+                        node2 = getNode("#" + std::to_string(n - m));
+                        finalIr = new ADD_IR({});
+                    }
                     break;
                 case IRType::IR_SUB:
                     // (a x m) - n
-
+                    if (tmp->ir->irType == IRType::IR_ADD) {
+                        // (a + m) - n
+                        node1 = getNode("#" + std::to_string(m - n));
+                        node2 = tmp_cnodes[tmp_cursor ^ 1];
+                        finalIr = new ADD_IR({});
+                    } else {
+                        // (a - m) - n
+                        node1 = tmp_cnodes[tmp_cursor ^ 1];
+                        node2 = getNode("#" + std::to_string(n + m));
+                        finalIr = new SUB_IR({});
+                    }
                     break;
                 case IRType::IR_MUL:
                     // (a x m) * n
@@ -606,20 +961,21 @@ DagNode *DAG::aoNode(IR *ir, DagNode **cnodes) {
                     // (a x m) / n
                     break;
             }
-
         }
-
     }
 
+    if (finalIr == nullptr) {
+        return nullptr;
+    }
 
-//    DagNode *fuck = new DagNode();
-//    finalIr->args = std::string();
-//    fuck->ir = finalIr;
-//    fuck->children.clear();
-//    fuck->children.push_back(node1);
-//    fuck->children.push_back(node2);
-
-    return nullptr;
+    DagNode *fuck = new DagNode();
+    fuck->ir = finalIr;
+    fuck->ir->args = {"", node1->name, node2->name};
+    fuck->children.clear();
+    fuck->children.push_back(node1);
+    fuck->children.push_back(node2);
+    cout << "!!!!!" << fuck->ir << endl;
+    return fuck;
 
 }
 

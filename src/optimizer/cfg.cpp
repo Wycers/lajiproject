@@ -5,6 +5,7 @@
 #include "cfg.h"
 #include <fstream>
 #include <unordered_set>
+#include <algorithm>
 
 using std::cout, std::endl;
 
@@ -201,6 +202,8 @@ IRList CFG::optimize() {
                     right.insert(ir->args[2]);
                     break;
                 case IRType::IR_LDEREF:
+                    right.insert(ir->args[0]);
+                    right.insert(ir->args[1]);
                 case IRType::IR_CALL:
                 case IRType::IR_LABEL:
                 case IRType::IR_FUNCTION:
@@ -254,7 +257,23 @@ IRList Block::optimize() {
     this->dag->print(this->str());
     this->dag->optimize();
     auto irs = this->dag->restore();
-    this->dag->print(this->str());
+
+    auto dag_opt = new DAG(irs);
+    dag_opt->optimize();
+    irs = dag_opt->restore();
+
+    dag_opt = new DAG(irs);
+    dag_opt->optimize();
+    irs = dag_opt->restore();
+
+    dag_opt = new DAG(irs);
+    dag_opt->optimize();
+
+    dag_opt->print(this->str() + "_opt");
+
+    irs = dag_opt->restore();
+
+//    this->dag->print(this->str());
     for (auto ir : irs) {
         cout << ir->str() << endl;
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ir.hpp>
+#include <algorithm>
 #include "cfg.h"
 
 IRList optimize(IRList irs) {
