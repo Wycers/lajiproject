@@ -20,8 +20,12 @@ IRList &operator+=(IRList &a, const IRList b);
 
 IRList &operator+=(IRList &a, IR *b);
 
-DagNode *bubble(DagNode *curNode) {
+DagNode *DAG::bubble(DagNode *curNode) {
     while (curNode->ir && curNode->ir->irType == IRType::IR_ASSIGN) {
+        auto child = curNode->children[0];
+        if (getNode(child->name) != child) {
+            return curNode;
+        }
         curNode = curNode->children[0];
     }
     return curNode;

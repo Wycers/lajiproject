@@ -40,6 +40,7 @@ struct DAG {
 
     DagNode *ao1(IR *ir, DagNode *cnodes[2]);
     DagNode *ao2(IR *ir, DagNode *cnodes[2]);
+    DagNode *bubble(DagNode *curNode);
 };
 
 
